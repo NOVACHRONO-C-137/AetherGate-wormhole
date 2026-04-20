@@ -426,37 +426,73 @@ contract VaultBridge is AccessControl, ReentrancyGuard, Pausable {
         emit Burned(msg.sender, wtAddr, netAmount, fee, destChainId, destRecipient, nonce);
     }
 
-    // ─────────────────────────────────────────
+    // ─────────────────────────────────────────────
     //  Internal helpers
-    // ─────────────────────────────────────────
+    // ─────────────────────────────────────────────
 
     function _computeFee(uint256 amount) internal view returns (uint256 fee, uint256 net) {
         fee = (amount * feeBps) / 10_000;
         net = amount - fee;
     }
 
+    /**
+     * @dev Generates a unique nonce for each bridge operation.
+     *
+     *  abi.encodePacked layout (264 bytes = 0x108):
+     *  ┌────────────┬───────┬────────┐
+     *  │ Field      │ Bytes │ Offset │
+     *  ├────────────┼───────┼────────┤
+     *  │ chainid    │  32   │ 0x00   │
+     *  │ CHAIN_ID   │  32   │ 0x20   │
+     *  │ sender     │  20   │ 0x40   │
+     *  │ token      │  20   │ 0x54   │
+     *  │ amount     │  32   │ 0x68   │
+     *  │ destChain  │  32   │ 0x88   │
+     *  │ destRecip  │  32   │ 0xa8   │
+     *  │ timestamp  │  32   │ 0xc8   │
+     *  │ prevrandao │  32   │ 0xe8   │
+     *  └────────────┴───────┴────────┘
+     */
     function _generateNonce(
         address sender,
         address token,
         uint256 amount,
         uint256 destChainId,
         bytes32 destRecipient
-    ) internal view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                block.chainid,
-                CHAIN_ID,
-                sender,
-                token,
-                amount,
-                destChainId,
-                destRecipient,
-                block.timestamp,
-                block.prevrandao
-            )
-        );
+    ) internal view returns (bytes32 result) {
+        uint256 immutableChainId = CHAIN_ID;
+        /// @solidity memory-safe-assembly
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr,            chainid())        // [0x00..0x20)  block.chainid
+            mstore(add(ptr, 0x20), immutableChainId) // [0x20..0x40)  CHAIN_ID
+            mstore(add(ptr, 0x40), shl(96, sender))  // [0x40..0x54)  sender  (20 bytes)
+            mstore(add(ptr, 0x54), shl(96, token))   // [0x54..0x68)  token   (20 bytes)
+            mstore(add(ptr, 0x68), amount)           // [0x68..0x88)  amount
+            mstore(add(ptr, 0x88), destChainId)      // [0x88..0xa8)  destChainId
+            mstore(add(ptr, 0xa8), destRecipient)    // [0xa8..0xc8)  destRecipient
+            mstore(add(ptr, 0xc8), timestamp())      // [0xc8..0xe8)  block.timestamp
+            mstore(add(ptr, 0xe8), prevrandao())     // [0xe8..0x108) block.prevrandao
+            result := keccak256(ptr, 0x108)          // hash 264 bytes
+        }
     }
 
+    /**
+     * @dev Builds the unlock message hash for relayer signature verification.
+     *
+     *  abi.encodePacked layout (185 bytes = 0xb9):
+     *  ┌─────────────────────┬───────┬────────┐
+     *  │ Field               │ Bytes │ Offset │
+     *  ├─────────────────────┼───────┼────────┤
+     *  │ "AETHERGATE_UNLOCK" │  17   │ 0x00   │
+     *  │ CHAIN_ID            │  32   │ 0x11   │
+     *  │ token               │  20   │ 0x31   │
+     *  │ recipient           │  20   │ 0x45   │
+     *  │ amount              │  32   │ 0x59   │
+     *  │ bridgeNonce         │  32   │ 0x79   │
+     *  │ originChainId       │  32   │ 0x99   │
+     *  └─────────────────────┴───────┴────────┘
+     */
     function _buildUnlockHash(
         address token,
         address recipient,
@@ -464,19 +500,40 @@ contract VaultBridge is AccessControl, ReentrancyGuard, Pausable {
         bytes32 bridgeNonce,
         uint256 originChainId
     ) internal view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                "AETHERGATE_UNLOCK",
-                CHAIN_ID,
-                token,
-                recipient,
-                amount,
-                bridgeNonce,
-                originChainId
-            )
-        ).toEthSignedMessageHash();
+        uint256 immutableChainId = CHAIN_ID;
+        bytes32 innerHash;
+        /// @solidity memory-safe-assembly
+        assembly {
+            let ptr := mload(0x40)
+            //  "AETHERGATE_UNLOCK" = 0x414554484552474154455f554e4c4f434b
+            mstore(ptr, 0x414554484552474154455f554e4c4f434b000000000000000000000000000000)
+            mstore(add(ptr, 0x11), immutableChainId)  // [0x11..0x31)
+            mstore(add(ptr, 0x31), shl(96, token))    // [0x31..0x45)  20 bytes
+            mstore(add(ptr, 0x45), shl(96, recipient))// [0x45..0x59)  20 bytes
+            mstore(add(ptr, 0x59), amount)            // [0x59..0x79)
+            mstore(add(ptr, 0x79), bridgeNonce)       // [0x79..0x99)
+            mstore(add(ptr, 0x99), originChainId)     // [0x99..0xb9)
+            innerHash := keccak256(ptr, 0xb9)         // hash 185 bytes
+        }
+        return innerHash.toEthSignedMessageHash();
     }
 
+    /**
+     * @dev Builds the mint message hash for relayer signature verification.
+     *
+     *  abi.encodePacked layout (195 bytes = 0xc3):
+     *  ┌──────────────────┬───────┬────────┐
+     *  │ Field            │ Bytes │ Offset │
+     *  ├──────────────────┼───────┼────────┤
+     *  │ "AETHERGATE_MINT"│  15   │ 0x00   │
+     *  │ CHAIN_ID         │  32   │ 0x0f   │
+     *  │ originChainId    │  32   │ 0x2f   │
+     *  │ foreignAssetId   │  32   │ 0x4f   │
+     *  │ recipient        │  20   │ 0x6f   │
+     *  │ amount           │  32   │ 0x83   │
+     *  │ bridgeNonce      │  32   │ 0xa3   │
+     *  └──────────────────┴───────┴────────┘
+     */
     function _buildMintHash(
         uint256 originChainId,
         bytes32 foreignAssetId,
@@ -484,17 +541,22 @@ contract VaultBridge is AccessControl, ReentrancyGuard, Pausable {
         uint256 amount,
         bytes32 bridgeNonce
     ) internal view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                "AETHERGATE_MINT",
-                CHAIN_ID,
-                originChainId,
-                foreignAssetId,
-                recipient,
-                amount,
-                bridgeNonce
-            )
-        ).toEthSignedMessageHash();
+        uint256 immutableChainId = CHAIN_ID;
+        bytes32 innerHash;
+        /// @solidity memory-safe-assembly
+        assembly {
+            let ptr := mload(0x40)
+            //  "AETHERGATE_MINT" = 0x414554484552474154455f4d494e54
+            mstore(ptr, 0x414554484552474154455f4d494e540000000000000000000000000000000000)
+            mstore(add(ptr, 0x0f), immutableChainId)   // [0x0f..0x2f)
+            mstore(add(ptr, 0x2f), originChainId)      // [0x2f..0x4f)
+            mstore(add(ptr, 0x4f), foreignAssetId)     // [0x4f..0x6f)
+            mstore(add(ptr, 0x6f), shl(96, recipient)) // [0x6f..0x83)  20 bytes
+            mstore(add(ptr, 0x83), amount)             // [0x83..0xa3)
+            mstore(add(ptr, 0xa3), bridgeNonce)        // [0xa3..0xc3)
+            innerHash := keccak256(ptr, 0xc3)          // hash 195 bytes
+        }
+        return innerHash.toEthSignedMessageHash();
     }
 
     /// @dev Verifies that `sig` is from an address with RELAYER_ROLE.

@@ -268,11 +268,14 @@ contract VaultBridgeTest is Test {
             sig
         );
 
-        // Now burn
+        // ── Now burn ──────────────────────────────────────────
         bytes32 destRecipient = bytes32(uint256(99));
+
+        // Query BEFORE prank so it doesn't consume it
+        address wtAddr = bridge.getWrappedToken(SOL_CHAIN, foreignAsset);
+
         vm.prank(USER);
         vm.expectEmit(true, true, false, false);
-        address wtAddr = bridge.getWrappedToken(SOL_CHAIN, foreignAsset);
         emit VaultBridge.Burned(
             USER,
             wtAddr,
