@@ -1,0 +1,644 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+/* ── CSS Variables ──────────────────────────────────────────── */
+:root {
+  --aether-pulse: #6c63ff;
+  --aether-glow: #a78bfa;
+  --aether-cyan: #22d3ee;
+  --aether-spark: #f0abfc;
+  --aether-void: #000000;       /* pure black */
+  --aether-deep: #07071a;
+  --aether-navy: #0d0d2b;
+  --glass-border: rgba(108, 99, 255, 0.25);
+  --glass-bg: rgba(13, 13, 43, 0.55);
+  --glass-shine: rgba(167, 139, 250, 0.08);
+}
+
+/* ── Base Reset ─────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #000000;
+  color: #e2e8f0;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--aether-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--aether-pulse);
+  border-radius: 3px;
+}
+
+/* ── Noise texture overlay — removed; pure black base ──────── */
+
+/* ── Glassmorphism card ──────────────────────────────────────── */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow:
+    0 0 0 1px var(--glass-shine) inset,
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(108, 99, 255, 0.06);
+}
+
+/* ── Glow button ────────────────────────────────────────────── */
+.btn-aether {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  font-family: var(--font-rajdhani), sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #6c63ff 0%, #a78bfa 60%, #22d3ee 100%);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-aether::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.btn-aether:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(108, 99, 255, 0.55);
+}
+
+.btn-aether:hover::before {
+  opacity: 1;
+}
+
+.btn-aether:active {
+  transform: translateY(0);
+}
+
+.btn-aether:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Secondary ghost button */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-family: var(--font-rajdhani), sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--aether-glow);
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.btn-ghost:hover {
+  border-color: var(--aether-pulse);
+  background: rgba(108, 99, 255, 0.1);
+  color: #fff;
+}
+
+/* ── Input ──────────────────────────────────────────────────── */
+.input-aether {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(7, 7, 26, 0.8);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 1rem;
+  font-family: var(--font-outfit), sans-serif;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-aether::placeholder {
+  color: rgba(167, 139, 250, 0.4);
+}
+
+.input-aether:focus {
+  border-color: var(--aether-pulse);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.18);
+}
+
+/* ── Section divider ──────────────────────────────────────────── */
+.section-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--aether-pulse), var(--aether-cyan), transparent);
+  opacity: 0.35;
+}
+
+/* ── Aether badge ─────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.badge-pulse {
+  background: rgba(108, 99, 255, 0.18);
+  color: #a78bfa;
+  border: 1px solid rgba(108, 99, 255, 0.3);
+}
+
+.badge-cyan {
+  background: rgba(34, 211, 238, 0.12);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.badge-spark {
+  background: rgba(240, 171, 252, 0.12);
+  color: #f0abfc;
+  border: 1px solid rgba(240, 171, 252, 0.3);
+}
+
+.badge-gold {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+/* ── Shimmer skeleton loader ──────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(90deg, rgba(108, 99, 255, 0.06) 25%, rgba(108, 99, 255, 0.14) 50%, rgba(108, 99, 255, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* ── Hexagonal clip ───────────────────────────────────────────── */
+.hex-clip {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* ── ZZZ-inspired scan line ───────────────────────────────────── */
+.scan-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-overlay::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--aether-cyan), transparent);
+  animation: scan-line 3s linear infinite;
+  opacity: 0.4;
+}
+
+/* ── Particle dots (background decoration) ───────────────────── */
+.particle-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--aether-pulse);
+  animation: float-up 4s ease-in-out infinite;
+  filter: blur(1px);
+  opacity: 0.5;
+}
+
+/* ── Typography helpers ───────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #a78bfa 0%, #22d3ee 50%, #f0abfc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #fbbf24 0%, #f0abfc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.font-display {
+  font-family: var(--font-rajdhani), sans-serif;
+}
+
+/* ── AetherCard with clipped corners (sinister edge) ──────────────────────────── */
+.glass-card-clip {
+  position: relative;
+  background: linear-gradient(135deg, rgba(7, 7, 26, 0.85) 0%, rgba(13, 13, 43, 0.75) 100%);
+  border: 1px solid var(--glass-border);
+  /* Clip corners: 16px radius on top-left & bottom-right, cut on others */
+  clip-path: polygon(
+    16px 0, calc(100% - 16px) 0,
+    100% 16px, 100% calc(100% - 16px),
+    calc(100% - 16px) 100%, 16px 100%,
+    0 calc(100% - 16px), 0 16px
+  );
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow:
+    0 0 0 1px var(--glass-shine) inset,
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(108, 99, 255, 0.06);
+}
+
+/* ── Scanline overlay effect (subtle) ─────────────────────────────────────────── */
+.scanline-overlay {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(34, 211, 238, 0.02) 2px,
+    rgba(34, 211, 238, 0.02) 4px
+  );
+  pointer-events: none;
+}
+
+/* ── Animated scanline sweep (button hover) ───────────────────────────────────── */
+@keyframes scan-sweep {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(200%); }
+}
+.animate-scan-sweep {
+  animation: scan-sweep 0.8s linear forwards;
+}
+
+/* ── Pulsing glow ring (used on cards) ────────────────────────────────────────── */
+@keyframes ring-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.4); }
+  70%  { box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+}
+
+/* ── Glitch effect overlay ─────────────────────────────────────────────────────── */
+@keyframes glitch-skew {
+  0%   { transform: skew(0deg); }
+  20%  { transform: skew(-2deg); }
+  40%  { transform: skew(2deg); }
+  60%  { transform: skew(-1deg); }
+  80%  { transform: skew(1deg); }
+  100% { transform: skew(0deg); }
+}
+
+.glitch-active {
+  animation: glitch-skew 0.3s ease-in-out;
+}
+
+/* ── Neon border glow ─────────────────────────────────────────────────────────── */
+@keyframes neon-pulse {
+  0%, 100% { border-color: rgba(34, 211, 238, 0.3); }
+  50%      { border-color: rgba(167, 139, 250, 0.5); }
+}
+
+.neon-border {
+  border: 1px solid var(--aether-cyan);
+  animation: neon-pulse 2s ease-in-out infinite;
+}
+
+/* ── ZZZ-style scanline (prominent horizontal line) ───────────────────────────── */
+@keyframes zzz-scanline {
+  0%   { top: -10%; }
+  100% { top: 110%; }
+}
+
+.scanline-glow {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--aether-cyan) 20%,
+    var(--aether-glow) 80%,
+    transparent 100%
+  );
+  opacity: 0.6;
+  animation: zzz-scanline 2.4s linear infinite;
+  filter: blur(0.5px) drop-shadow(0 0 4px var(--aether-cyan));
+}
+
+/* ── Custom scrollbar for transaction hub ─────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(7, 7, 26, 0.5);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.4);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.6);
+}
+
+/* ── Transition easings (ZZZ-inspired) ───────────────────────────────────────── */
+.ease-zzz-out {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ease-zzz-in {
+  transition-timing-function: cubic-bezier(0, 0, 0.48, 0);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CYBER-GLASSMORPHISM DESIGN SYSTEM — BridgeCard (Crimson Edition)
+   Palette: Blood Black #0a0000 · Crimson #cc1500 · Hot Red #ff3a20
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Main card container ── */
+.cyber-card {
+  position: relative;
+  width: 100%;
+  background: rgba(10, 0, 0, 0.72);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border-left: 5px solid #cc1500;
+  border-top: 1px solid rgba(204, 21, 0, 0.18);
+  border-right: 1px solid rgba(204, 21, 0, 0.08);
+  border-bottom: 1px solid rgba(204, 21, 0, 0.08);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 20px),
+    calc(100% - 20px) 100%,
+    0 100%
+  );
+  padding: 24px 20px 28px;
+  box-shadow:
+    0 0 0 1px rgba(204, 21, 0, 0.04) inset,
+    0 8px 48px rgba(0, 0, 0, 0.7),
+    0 0 80px rgba(10, 0, 0, 0.5),
+    inset 0 1px 0 rgba(204, 21, 0, 0.1);
+}
+
+/* Corner indicator triangle */
+.cyber-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, transparent 50%, rgba(204, 21, 0, 0.35) 50%);
+  pointer-events: none;
+}
+
+/* ── Section panels (From / To) ── */
+.cyber-section {
+  background: rgba(18, 0, 0, 0.6);
+  border: 1px solid rgba(135, 164, 182, 0.12);
+  border-left-color: rgba(204, 21, 0, 0);
+  border-left-width: 3px;
+  border-radius: 4px;
+  padding: 14px 14px 12px;
+  transition: border-left-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.cyber-section:focus-within {
+  border-left-color: #ff3a20;
+  box-shadow: -3px 0 12px rgba(255, 58, 32, 0.12);
+}
+
+/* ── Large transparent amount input ── */
+.cyber-amount-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: 700;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  padding: 0;
+  padding-right: 3.5rem;
+  -moz-appearance: textfield;
+}
+.cyber-amount-input::-webkit-outer-spin-button,
+.cyber-amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.cyber-amount-input::placeholder {
+  color: rgba(135, 164, 182, 0.35);
+}
+
+/* ── Regular text input (recipient address) ── */
+.cyber-text-input {
+  width: 100%;
+  background: rgba(18, 0, 0, 0.5);
+  border: 1px solid rgba(135, 164, 182, 0.18);
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.825rem;
+  font-family: ui-monospace, monospace;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cyber-text-input::placeholder {
+  color: rgba(135, 164, 182, 0.4);
+}
+.cyber-text-input:focus {
+  border-color: #ff3a20;
+  box-shadow: 0 0 0 2px rgba(255, 58, 32, 0.1),
+              -3px 0 10px rgba(255, 58, 32, 0.08);
+}
+
+/* ── Network / token selector button ── */
+.cyber-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(18, 0, 0, 0.7);
+  border: 1px solid rgba(135, 164, 182, 0.2);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+.cyber-select-btn:hover {
+  border-color: rgba(255, 58, 32, 0.45);
+  background: rgba(18, 0, 0, 0.9);
+}
+
+/* ── Network dropdown panel ── */
+.cyber-dropdown {
+  background: rgba(10, 0, 0, 0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(204, 21, 0, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%
+  );
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(204, 21, 0, 0.06) inset;
+}
+
+/* ── Percentage shortcut buttons (25% / 50% / MAX) ── */
+.cyber-pct-btn {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #87a4b6;
+  background: rgba(18, 0, 0, 0.6);
+  border: 1px solid rgba(135, 164, 182, 0.2);
+  border-radius: 3px;
+  padding: 2px 7px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.cyber-pct-btn:hover {
+  color: #ff6040;
+  border-color: rgba(255, 58, 32, 0.5);
+  background: rgba(255, 58, 32, 0.06);
+}
+
+/* ── Swap direction button ── */
+.cyber-swap-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(10, 0, 0, 0.9);
+  border: 1px solid rgba(135, 164, 182, 0.25);
+  border-radius: 4px;
+  color: #87a4b6;
+  cursor: pointer;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+  transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.cyber-swap-btn:hover {
+  background: transparent;
+  border-color: #ff3a20;
+  color: #ffb8b0;
+  box-shadow: 0 0 12px rgba(255, 58, 32, 0.3);
+}
+
+/* ── Primary CTA — "Bridge Assets" ──
+   Default: crimson fill, white text.
+   Hover:   transparent bg, bright red border, rose text.          */
+.cyber-cta-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: #cc1500;
+  border: 1px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%
+  );
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease;
+  box-shadow: 0 0 24px rgba(204, 21, 0, 0.3);
+}
+.cyber-cta-btn:hover:not(:disabled) {
+  background: transparent;
+  border-color: #ff3a20;
+  color: #ffb8b0;
+  box-shadow: 0 0 28px rgba(255, 58, 32, 0.3), inset 0 0 16px rgba(204, 21, 0, 0.05);
+}
+.cyber-cta-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Drop-shadow glow for the entire card (hover) ── */
+.cyber-card-wrapper:hover .cyber-card {
+  box-shadow:
+    0 0 0 1px rgba(204, 21, 0, 0.08) inset,
+    0 12px 60px rgba(0, 0, 0, 0.75),
+    0 0 40px rgba(204, 21, 0, 0.06);
+}
+
+/* ── 3D Gaming text — stacked extrusion (retro-blocky) ────────────
+   Layers: deep teal darks (depth) → neon lime (highlight edge)    */
+.text-3d-gaming {
+  color: #ffffff;
+  text-shadow:
+    1px 1px 0px #001925,
+    2px 2px 0px #001925,
+    3px 3px 0px #001925,
+    4px 4px 0px #caf438,
+    5px 5px 0px #caf438,
+    6px 6px 0px #caf438;
+  letter-spacing: 0.05em;
+}

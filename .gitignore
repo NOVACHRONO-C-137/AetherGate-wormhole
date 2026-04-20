@@ -1,0 +1,26 @@
+# Node & Next.js (Workspaces 3 & 4)
+node_modules/
+.next/
+out/
+build/
+npm-debug.log*
+
+# Environment Variables
+.env
+.env.local
+
+# Foundry / EVM (Workspace 1)
+broadcast/
+cache/
+out/
+out-optimized/
+
+# Anchor / Solana (Workspace 2)
+target/
+test-ledger/
+.anchor/
+
+# OS & Editor
+.DS_Store
+.vscode/
+*.log
