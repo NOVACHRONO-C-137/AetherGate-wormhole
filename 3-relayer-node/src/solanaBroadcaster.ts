@@ -13,9 +13,9 @@ import {
   PublicKey,
   ParsedTransactionWithMeta,
   SystemProgram,
-  BN,
 } from "@solana/web3.js";
-import { AnchorProvider, Program, Idl, AnchorWallet } from "@coral-xyz/anchor";
+import { AnchorProvider, Program, Idl, Wallet } from "@coral-xyz/anchor";
+import BN from "bn.js";
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import bs58 from "bs58";
 import { BridgeDirection, BridgeEvent, RelayerConfig } from "./types.js";
@@ -137,7 +137,24 @@ export class SolanaBroadcaster {
       bs58.decode(config.relayerSolanaKey)
     );
 
-    const wallet   = new AnchorWallet(this.relayerKeypair);
+    const wallet: Wallet = {
+      publicKey: this.relayerKeypair.publicKey,
+      payer: this.relayerKeypair,
+      signTransaction: async (tx) => { 
+        if ("partialSign" in tx) {
+          (tx as any).partialSign(this.relayerKeypair); 
+        }
+        return tx; 
+      },
+      signAllTransactions: async (txs) => { 
+        txs.forEach(tx => {
+          if ("partialSign" in tx) {
+            (tx as any).partialSign(this.relayerKeypair); 
+          }
+        }); 
+        return txs; 
+      },
+    };
     const provider = new AnchorProvider(this.connection, wallet, {
       commitment: "confirmed",
     });
@@ -272,21 +289,21 @@ export class SolanaBroadcaster {
 
     try {
       const signature = await this.program.methods
-        .mint_wrapped(
+        .mintWrapped(
           new BN(params.amount.toString()),
           Array.from(nonceBytes),
-          params.originChainId
+          new BN(params.originChainId)
         )
         .accounts({
           relayer: this.relayerKeypair.publicKey,
           recipient,
-          bridge_state: bridgeState,
-          wrapped_mint: mint,
-          mint_authority: mintAuthority,
-          recipient_token_account: recipientTokenAccount,
-          nonce_account: nonceAccount,
-          token_program: TOKEN_PROGRAM_ID,
-          system_program: SystemProgram.programId,
+          bridgeState,
+          wrappedMint: mint,
+          mintAuthority,
+          recipientTokenAccount,
+          nonceAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
         })
         .rpc();
 
@@ -353,23 +370,23 @@ export class SolanaBroadcaster {
 
     try {
       const signature = await this.program.methods
-        .unlock_native(
+        .unlockNative(
           new BN(params.amount.toString()),
           Array.from(nonceBytes),
-          params.originChainId
+          new BN(params.originChainId)
         )
         .accounts({
           relayer: this.relayerKeypair.publicKey,
           recipient,
-          bridge_state: bridgeState,
+          bridgeState,
           mint,
-          vault_authority: vaultAuthority,
-          vault_token_account: vaultTokenAccount,
-          recipient_token_account: recipientTokenAccount,
-          nonce_account: nonceAccount,
-          token_program: TOKEN_PROGRAM_ID,
-          system_program: SystemProgram.programId,
-          associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+          vaultAuthority,
+          vaultTokenAccount,
+          recipientTokenAccount,
+          nonceAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         })
         .rpc();
 

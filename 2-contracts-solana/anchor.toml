@@ -5,14 +5,14 @@ anchor_version = "0.31.0"
 resolution = true
 skip-lint = false
 
-[programs.devnet]
+[programs.localnet]
 aether_gate = "3D7escmXHQSZYF4WUCu4BspRJJvqyiqQsuMPyfemKSgJ"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
