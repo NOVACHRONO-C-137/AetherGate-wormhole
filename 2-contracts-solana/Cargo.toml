@@ -1,6 +1,3 @@
-cd /mnt/d/syllabus/AetherGate/2-contracts-solana
-
-cat > Cargo.toml << 'EOF'
 [workspace]
 members = [
     "programs/aether_gate"
@@ -11,4 +8,5 @@ resolver = "2"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1
-EOF
+
+

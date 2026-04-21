@@ -1,7 +1,8 @@
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Burn, Token, TokenAccount, Transfer};
 
-declare_id!("AeTHrGATeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+declare_id!("3D7escmXHQSZYF4WUCu4BspRJJvqyiqQsuMPyfemKSgJ");
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 pub const VAULT_SEED:       &[u8] = b"vault";
@@ -74,7 +75,8 @@ pub mod aether_gate {
 
         // Transfer fee portion to fee_recipient immediately
         if fee > 0 {
-            let seeds = &[VAULT_SEED, ctx.accounts.mint.key().as_ref(), &[ctx.bumps.vault_authority]];
+            let mint_key = ctx.accounts.mint.key();
+            let seeds = &[VAULT_SEED, mint_key.as_ref(), &[ctx.bumps.vault_authority]];
             let signer = &[&seeds[..]];
             let fee_cpi = CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -415,7 +417,7 @@ pub struct LockNative<'info> {
 
     pub token_program:       Program<'info, Token>,
     pub system_program:      Program<'info, System>,
-    pub associated_token_program: anchor_spl::associated_token::AssociatedToken,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
@@ -452,7 +454,7 @@ pub struct UnlockNative<'info> {
 
     pub token_program:  Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    pub associated_token_program: anchor_spl::associated_token::AssociatedToken,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
