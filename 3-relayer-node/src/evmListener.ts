@@ -37,8 +37,8 @@ export class EvmListener {
     private readonly onEvent: (event: BridgeEvent) => Promise<void>
   ) {}
 
-  async start(): Promise<void> {
-    this.provider = config.evmRpcUrl.startsWith("wss")
+async start(): Promise<void> {
+    this.provider = this.config.evmRpcUrl.startsWith("wss")
       ? new WebSocketProvider(this.config.evmRpcUrl)
       : new JsonRpcProvider(this.config.evmRpcUrl);
 
@@ -111,7 +111,7 @@ export class EvmListener {
         await this._waitForConfirmations(blockNumber);
 
         const event: BridgeEvent = {
-          direction:   BridgeDirection.SOLANA_TO_EVM,
+          direction:   BridgeDirection.EVM_TO_SOLANA,
           bridgeNonce: bridgeNonce as string,
           sender:      sender as string,
           recipient:   bytes32ToHex(destRecipient as string),
@@ -197,14 +197,11 @@ export class EvmListener {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function bytes32ToHex(b32: string): string {
-  // Strip leading zeros to recover an EVM address (last 20 bytes)
-  return "0x" + b32.slice(-40);
+  // Convert a Solidity bytes32 to full 32-byte hex (64 hex chars) with 0x prefix
+  const hex = b32.startsWith("0x") ? b32.slice(2) : b32;
+  return "0x" + hex.padStart(64, "0");
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
-
-// Keep config accessible at module level (set from index.ts)
-let config: RelayerConfig;
-export function setConfig(c: RelayerConfig): void { config = c; }

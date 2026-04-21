@@ -11,6 +11,7 @@ import { SigningModule } from "./signer.js";
 import { EvmListener } from "./evmListener.js";
 import { SolanaBroadcaster } from "./solanaBroadcaster.js";
 import { logger } from "./logger.js";
+import bs58 from "bs58";
 
 // ─── Load & validate config ──────────────────────────────────────────────────
 
@@ -63,25 +64,60 @@ async function scheduleRetry(event: BridgeEvent, relayFn: () => Promise<void>): 
 async function createDispatcher(
   config: RelayerConfig,
   signer: SigningModule,
-  evmListener: EvmListener
+  evmListener: EvmListener,
+  solanaBroadcaster: SolanaBroadcaster
 ) {
   return async (event: BridgeEvent): Promise<void> => {
     const relay = async () => {
       try {
         if (event.direction === BridgeDirection.EVM_TO_SOLANA) {
-          // EVM Locked → Solana mint_wrapped  (not yet implemented — handled by SolanaBroadcaster directly)
-          // For the EVM→Solana path the SolanaBroadcaster.submitMintWrapped would be called here.
-          // Placeholder: log and skip (Solana TX submission requires full IDL + accounts).
-          logger.info(`[Relay] EVM→SOL: LOCK event routed to Solana broadcaster | nonce: ${event.bridgeNonce}`);
+          if (event.eventType === "LOCK") {
+            // EVM Lock → Solana mint_wrapped
+            const evmToken = event.assetId.startsWith("0x")
+              ? event.assetId.slice(2).toLowerCase()
+              : event.assetId.toLowerCase();
+            const wrappedMint = config.evmToSolWrappedMint?.[evmToken];
+            if (!wrappedMint) {
+              throw new Error(`Missing evmToSolWrappedMint mapping for token ${event.assetId}`);
+            }
+            const nonceBytes = hexToBytes(event.bridgeNonce);
+            await solanaBroadcaster.submitMintWrapped({
+              wrappedMint: wrappedMint,
+              recipient: event.recipient,
+              amount: event.amount,
+              bridgeNonce: nonceBytes,
+              originChainId: event.srcChainId,
+            });
+
+          } else if (event.eventType === "BURN") {
+            // EVM Burn → Solana unlock_native
+            const wrappedToken = event.assetId.startsWith("0x")
+              ? event.assetId.slice(2).toLowerCase()
+              : event.assetId.toLowerCase();
+            const nativeMint = config.evmWrappedToSolNative?.[wrappedToken];
+            if (!nativeMint) {
+              throw new Error(`Missing evmWrappedToSolNative mapping for wrapped token ${event.assetId}`);
+            }
+            const nonceBytes = hexToBytes(event.bridgeNonce);
+            await solanaBroadcaster.submitUnlockNative({
+              mint: nativeMint,
+              recipient: event.recipient,
+              amount: event.amount,
+              bridgeNonce: nonceBytes,
+              originChainId: event.srcChainId,
+            });
+          }
 
         } else if (event.direction === BridgeDirection.SOLANA_TO_EVM) {
           if (event.eventType === "LOCK") {
-            // Solana LOCK → EVM mintWrapped
+            // Solana Lock → EVM mintWrapped
+            const foreignAssetId = event.assetId.startsWith("0x")
+              ? event.assetId
+              : "0x" + Buffer.from(bs58.decode(event.assetId)).toString("hex").padStart(64, "0");
+
             const sig = await signer.signMint({
               originChainId:  config.solanaChainId,
-              foreignAssetId: event.assetId.startsWith("0x")
-                ? event.assetId
-                : "0x" + Buffer.from(event.assetId).toString("hex").padStart(64, "0"),
+              foreignAssetId,
               recipient:     event.recipient,
               amount:        event.amount,
               bridgeNonce:   event.bridgeNonce,
@@ -89,9 +125,7 @@ async function createDispatcher(
 
             await evmListener.submitMintWrapped({
               originChainId:  config.solanaChainId,
-              foreignAssetId: event.assetId.startsWith("0x")
-                ? event.assetId
-                : "0x" + Buffer.from(event.assetId).toString("hex").padStart(64, "0"),
+              foreignAssetId,
               recipient:     event.recipient,
               amount:        event.amount,
               bridgeNonce:   event.bridgeNonce,
@@ -99,7 +133,7 @@ async function createDispatcher(
             });
 
           } else if (event.eventType === "BURN") {
-            // Solana BURN → EVM unlockNative
+            // Solana Burn → EVM unlockNative
             const sig = await signer.signUnlock({
               token:         event.assetId,
               recipient:     event.recipient,
@@ -125,7 +159,7 @@ async function createDispatcher(
     };
 
     await relay();
-  };
+   };
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
@@ -138,20 +172,26 @@ async function main(): Promise<void> {
   const config = loadConfig();
   const signer = new SigningModule(config.relayerEvmPrivateKey, 11155111); // Sepolia
 
-  // Bootstrap EVM listener first so we can pass it to dispatcher
-  const evmListener = new EvmListener(config, async (_) => {});
-  const dispatcher  = await createDispatcher(config, signer, evmListener);
+  // Create listeners with a temporary no-op callback; we'll set the real dispatcher after creation
+  let dispatcher: (event: BridgeEvent) => Promise<void>;
 
-  // Wire callbacks
-  const evmListenerWithCb = new EvmListener(config, dispatcher);
-  const solanaBroadcaster = new SolanaBroadcaster(config, dispatcher);
+  const evmListener = new EvmListener(config, async (event) => {
+    await dispatcher(event);
+  });
 
-  await evmListenerWithCb.start();
+  const solanaBroadcaster = new SolanaBroadcaster(config, async (event) => {
+    await dispatcher(event);
+  });
+
+  // Create the dispatcher with the real listener instances
+  dispatcher = await createDispatcher(config, signer, evmListener, solanaBroadcaster);
+
+  await evmListener.start();
   solanaBroadcaster.start();
 
   // Graceful shutdown
-  process.on("SIGINT",  () => shutdown(evmListenerWithCb, solanaBroadcaster));
-  process.on("SIGTERM", () => shutdown(evmListenerWithCb, solanaBroadcaster));
+  process.on("SIGINT",  () => shutdown(evmListener, solanaBroadcaster));
+  process.on("SIGTERM", () => shutdown(evmListener, solanaBroadcaster));
 
   logger.info("[Main] Relayer running. Listening for cross-chain events...");
 }
@@ -165,6 +205,15 @@ function shutdown(evm: EvmListener, sol: SolanaBroadcaster): void {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function hexToBytes(hex: string): number[] {
+  const h = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const bytes = [];
+  for (let i = 0; i < h.length; i += 2) {
+    bytes.push(parseInt(h.substr(i, 2), 16));
+  }
+  return bytes;
 }
 
 main().catch((e) => {

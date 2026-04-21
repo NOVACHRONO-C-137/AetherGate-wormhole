@@ -35,4 +35,8 @@ export interface RelayerConfig {
   solanaPollIntervalMs:  number;
   evmConfirmations:      number;
   maxRetries:            number;
+  /** Optional mapping from EVM token address (lowercase, no 0x) to Solana wrapped mint (Base58 pubkey) */
+  evmToSolWrappedMint?:  Record<string, string>;
+  /** Optional mapping from EVM wrapped token address (lowercase) to Solana native mint (Base58 pubkey) */
+  evmWrappedToSolNative?: Record<string, string>;
 }

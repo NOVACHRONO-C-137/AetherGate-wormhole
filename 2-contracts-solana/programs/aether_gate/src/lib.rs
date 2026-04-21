@@ -8,6 +8,7 @@ pub const VAULT_SEED:       &[u8] = b"vault";
 pub const BRIDGE_SEED:      &[u8] = b"bridge";
 pub const MINT_AUTH_SEED:   &[u8] = b"mint_auth";
 pub const NONCE_SEED:       &[u8] = b"nonce";
+pub const WRAPPED_MINT_SEED: &[u8] = b"wrapped";
 pub const MAX_FEE_BPS:      u16   = 1000; // 10 %
 pub const SOLANA_CHAIN_ID:  u64   = 101;  // Solana Devnet chain identifier
 
@@ -235,7 +236,7 @@ pub mod aether_gate {
                 authority: ctx.accounts.user.to_account_info(),
             },
         );
-        token::burn(burn_cpi, net)?;
+        token::burn(burn_cpi, amount)?;
 
         // Mint fee to fee_recipient (stays as wrapped)
         if fee > 0 {
@@ -267,6 +268,89 @@ pub mod aether_gate {
             dest_chain_id,
             dest_recipient,
             bridge_nonce,
+        });
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  set_fee — Admin updates fee_bps and fee_recipient
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn set_fee(
+        ctx: Context<SetFee>,
+        new_fee_bps: u16,
+        new_fee_recipient: Pubkey,
+    ) -> Result<()> {
+        require!(new_fee_bps <= MAX_FEE_BPS, BridgeError::FeeTooHigh);
+        let bridge = &mut ctx.accounts.bridge_state;
+        require!(ctx.accounts.admin.key() == bridge.admin, BridgeError::UnauthorizedAdmin);
+        bridge.fee_bps = new_fee_bps;
+        bridge.fee_recipient = new_fee_recipient;
+        emit!(FeeUpdated {
+            new_fee_bps,
+            new_fee_recipient,
+        });
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  set_relayer — Admin rotates the relayer pubkey
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn set_relayer(
+        ctx: Context<SetRelayer>,
+        new_relayer: Pubkey,
+    ) -> Result<()> {
+        let bridge = &mut ctx.accounts.bridge_state;
+        require!(ctx.accounts.admin.key() == bridge.admin, BridgeError::UnauthorizedAdmin);
+        bridge.relayer = new_relayer;
+        emit!(RelayerUpdated {
+            new_relayer,
+        });
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  pause — Admin pauses the bridge
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn pause(
+        ctx: Context<PauseUnpause>,
+    ) -> Result<()> {
+        let bridge = &mut ctx.accounts.bridge_state;
+        require!(ctx.accounts.admin.key() == bridge.admin, BridgeError::UnauthorizedAdmin);
+        bridge.paused = true;
+        emit!(BridgePaused {});
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  unpause — Admin unpauses the bridge
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn unpause(
+        ctx: Context<PauseUnpause>,
+    ) -> Result<()> {
+        let bridge = &mut ctx.accounts.bridge_state;
+        require!(ctx.accounts.admin.key() == bridge.admin, BridgeError::UnauthorizedAdmin);
+        bridge.paused = false;
+        emit!(BridgeUnpaused {});
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  create_wrapped_mint — Admin creates a new SPL mint for a wrapped EVM asset
+    // ─────────────────────────────────────────────────────────────────────────
+    pub fn create_wrapped_mint(
+        ctx: Context<CreateWrappedMint>,
+        origin_chain_id: u64,
+        foreign_asset_id: [u8; 32],
+        decimals: u8,
+    ) -> Result<()> {
+        let bridge = &ctx.accounts.bridge_state;
+        require!(ctx.accounts.admin.key() == bridge.admin, BridgeError::UnauthorizedAdmin);
+
+        emit!(WrappedMintCreated {
+            mint: ctx.accounts.wrapped_mint.key(),
+            origin_chain_id,
+            foreign_asset_id,
+            decimals,
         });
         Ok(())
     }
@@ -440,6 +524,59 @@ pub struct BurnWrapped<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct SetFee<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(mut, seeds = [BRIDGE_SEED], bump = bridge_state.bump)]
+    pub bridge_state: Account<'info, BridgeState>,
+}
+
+#[derive(Accounts)]
+pub struct SetRelayer<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(mut, seeds = [BRIDGE_SEED], bump = bridge_state.bump)]
+    pub bridge_state: Account<'info, BridgeState>,
+}
+
+#[derive(Accounts)]
+pub struct PauseUnpause<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(mut, seeds = [BRIDGE_SEED], bump = bridge_state.bump)]
+    pub bridge_state: Account<'info, BridgeState>,
+}
+
+#[derive(Accounts)]
+#[instruction(origin_chain_id: u64, foreign_asset_id: [u8; 32], decimals: u8)]
+pub struct CreateWrappedMint<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(seeds = [BRIDGE_SEED], bump = bridge_state.bump)]
+    pub bridge_state: Account<'info, BridgeState>,
+
+    #[account(
+        init,
+        payer = admin,
+        seeds = [WRAPPED_MINT_SEED, &origin_chain_id.to_le_bytes(), &foreign_asset_id],
+        bump,
+        mint::decimals = decimals,
+        mint::authority = mint_authority,
+    )]
+    pub wrapped_mint: Account<'info, Mint>,
+
+    #[account(seeds = [MINT_AUTH_SEED, wrapped_mint.key().as_ref()], bump)]
+    pub mint_authority: UncheckedAccount<'info>,
+
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
 // ─── State Accounts ───────────────────────────────────────────────────────────
 
 #[account]
@@ -519,6 +656,31 @@ pub struct Burned {
     pub bridge_nonce:   [u8; 32],
 }
 
+#[event]
+pub struct FeeUpdated {
+    pub new_fee_bps: u16,
+    pub new_fee_recipient: Pubkey,
+}
+
+#[event]
+pub struct RelayerUpdated {
+    pub new_relayer: Pubkey,
+}
+
+#[event]
+pub struct BridgePaused {}
+
+#[event]
+pub struct BridgeUnpaused {}
+
+#[event]
+pub struct WrappedMintCreated {
+    pub mint: Pubkey,
+    pub origin_chain_id: u64,
+    pub foreign_asset_id: [u8; 32],
+    pub decimals: u8,
+}
+
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
 #[error_code]
@@ -531,6 +693,8 @@ pub enum BridgeError {
     NonceAlreadyUsed,
     #[msg("Caller is not the authorized relayer")]
     Unauthorized,
+    #[msg("Caller is not the admin")]
+    UnauthorizedAdmin,
     #[msg("Fee exceeds maximum allowed (10%)")]
     FeeTooHigh,
     #[msg("Arithmetic overflow")]
